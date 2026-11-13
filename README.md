@@ -24,7 +24,7 @@ LLM_self_preferencing_bias/
 1. **Clone the repo**
    ```bash
    git clone https://github.com/BJKin/LLM_self_preferencing_bias.git
-   cd ece285-self-preference
+   cd LLM_self_preferencing_bias
    ```
 
 2. **Create and activate a virtual environment** (Python 3.10+)
