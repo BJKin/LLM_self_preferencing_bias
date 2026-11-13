@@ -1,0 +1,7 @@
+# API clients
+openai             # OpenRouter
+google-genai       # Gemini
+python-dotenv     
+
+# Data and preprocessing
+pandas           
