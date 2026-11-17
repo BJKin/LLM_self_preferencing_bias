@@ -43,13 +43,14 @@ def _call_openrouter(cfg: dict, prompt: str, temperature: float) -> dict:
 
     choice = resp.choices[0]
     details = getattr(resp.usage, "completion_tokens_details", None)
+    thinking_tokens = getattr(details, "reasoning_tokens", None) or 0
     return {
         "text": (choice.message.content or "").strip(),
         "provider": getattr(resp, "provider", None),
         "temperature": temperature,
         "input_tokens": resp.usage.prompt_tokens,
-        "output_tokens": resp.usage.completion_tokens,
-        "thinking_tokens": getattr(details, "reasoning_tokens", None),
+        "output_tokens": resp.usage.completion_tokens - thinking_tokens,
+        "thinking_tokens": thinking_tokens,
         "finish_reason": choice.finish_reason,
     }
 
