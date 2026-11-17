@@ -4,6 +4,7 @@ google-genai>=3.4.0     # Gemini
 python-dotenv     
 
 # Data and preprocessing
+kagglehub
 pandas          
 matplotlib
 tqdm

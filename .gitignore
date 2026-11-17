@@ -11,6 +11,8 @@ __pycache__/
 # Raw data
 *.csv
 *.zip
+*.pdf
+.complete/
 
 # OS / editor
 .DS_Store
