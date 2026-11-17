@@ -1,7 +1,13 @@
 # API clients
-openai             # OpenRouter
-google-genai       # Gemini
+openai>=3.52.0          # OpenRouter
+google-genai>=3.4.0     # Gemini
 python-dotenv     
 
 # Data and preprocessing
-pandas           
+pandas          
+matplotlib
+tqdm
+
+# Notebook
+ipykernel
+ipywidgets
