@@ -25,7 +25,8 @@ def download_data(force: bool = False) -> None:
     for handle, file, folder in DATASETS.values():
         if force or not (folder / file).exists():
             kagglehub.dataset_download(handle, path=file, output_dir=str(folder), force_download=force)
-            shutil.rmtree(folder / ".complete", ignore_errors=True)  # kagglehub's empty "download finished" markers
+            # remove Kagglehub's download finished markers
+            shutil.rmtree(folder / ".complete", ignore_errors=True)
 
 
 class _SectionParser(HTMLParser):

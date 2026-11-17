@@ -6,8 +6,7 @@ DATA = ROOT / "data"
 RESULTS = ROOT / "results"
 
 # Generation settings
-GEN_TEMPERATURE = 1.0
-EVAL_TEMPERATURE = 1.0
+TEMPERATURE = 1.0
 
 # Models (llama-3.3-70b is control from original paper, all other models are new)
 MODELS = {
