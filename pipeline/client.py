@@ -1,4 +1,6 @@
 import os
+import threading
+import time
 
 from dotenv import load_dotenv
 from google import genai
@@ -11,8 +13,20 @@ load_dotenv()
 
 MAX_ATTEMPTS = 6
 
+_last_call = {}
+_pace_lock = threading.Lock()
 
-def _call_openrouter(cfg: dict, prompt: str, temperature: float) -> dict:
+
+def _pace(model: str, rpm: int) -> None:
+    """ Model request rate pacer to deal with GPT-6 Luna rate limit error """
+    with _pace_lock:
+        wait = _last_call.get(model, 0) + 60 / rpm - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_call[model] = time.monotonic()
+
+
+def _call_openrouter(cfg: dict, prompt: dict, temperature: float) -> dict:
     """ Openrouter api call """
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
@@ -29,7 +43,10 @@ def _call_openrouter(cfg: dict, prompt: str, temperature: float) -> dict:
 
     kwargs = dict(
         model=cfg["id"],
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": prompt["system"]},
+            {"role": "user", "content": prompt["user"]},
+        ],
         extra_body=extra_body,
     )
 
@@ -55,7 +72,7 @@ def _call_openrouter(cfg: dict, prompt: str, temperature: float) -> dict:
     }
 
 
-def _call_gemini(cfg: dict, prompt: str) -> dict:
+def _call_gemini(cfg: dict, prompt: dict) -> dict:
     """ Gemini api call """
     client = genai.Client(
         api_key=os.environ["GEMINI_API_KEY"],
@@ -68,7 +85,8 @@ def _call_gemini(cfg: dict, prompt: str) -> dict:
 
     interaction = client.interactions.create(
         model=cfg["id"],
-        input=prompt,
+        system_instruction=prompt["system"],
+        input=prompt["user"],
         generation_config={"thinking_level": cfg["thinking_level"]},
     )
 
@@ -84,9 +102,11 @@ def _call_gemini(cfg: dict, prompt: str) -> dict:
     }
 
 
-def generate(model: str, prompt: str, temperature: float) -> dict:
+def generate(model: str, prompt: dict, temperature: float) -> dict:
     """ LLM api call wrapper """
     cfg = MODELS[model]
+    if cfg.get("rpm"):
+        _pace(model, cfg["rpm"])
     if cfg["backend"] == "openrouter":
         result = _call_openrouter(cfg, prompt, temperature)
     elif cfg["backend"] == "gemini":

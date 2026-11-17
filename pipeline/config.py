@@ -30,6 +30,8 @@ MODELS = {
         "backend": "openrouter",
         "id": "openai/gpt-6-luna",
         "reasoning": {"enabled": True},
+        # OpenRouter's new account limit for Luna :(
+        "rpm": 20,
         "provider": {
             "only": [
                 "amazon-bedrock/global"
