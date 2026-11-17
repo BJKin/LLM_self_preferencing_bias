@@ -16,4 +16,7 @@ def log_response(path: Path, response: dict, **fields) -> None:
 
 def load_log(path: Path) -> pd.DataFrame:
     """ Read a JSONL log back into a DataFrame """
-    return pd.read_json(path, lines=True)
+    df = pd.read_json(path, lines=True, dtype=False)
+    if "timestamp" in df:
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df
