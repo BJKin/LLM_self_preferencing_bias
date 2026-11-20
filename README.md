@@ -12,10 +12,11 @@ on a given job listing, with the hopes of gaining a competitive advantage. [Xu e
 ## Repository structure
 ```
 LLM_self_preferencing_bias/                            
-├── data/       # Raw data and preprocessing
+├── data/       # Raw data
 ├── docs/       # Project documentation
-├── pipeline/   # LLM job applicant ranking pipeline
-├── results/    # Tables and figures
+├── notebooks/  # End-to-end pipeline
+├── pipeline/   # Resume processing and LLM querying module
+├── results/    # logs of LLM responses
 └── README.MD
 ```
 
