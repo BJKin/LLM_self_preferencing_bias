@@ -19,6 +19,13 @@ DATASETS = {
 RESUME_CSV = DATA / "Resume" / "Resume.csv"
 JOBS_CSV = DATA / "Jobs" / "JD_data.csv"
 
+# Remove resumes with summaries which are clearly junk
+JUNK_SUMMARY_IDS = {
+    "90867631",  
+    "18187364", 
+    "37087371",
+}
+
 
 def download_data(force: bool = False) -> None:
     """ Download the resume and job listing CSVs from Kaggle into ./data/ """
@@ -43,7 +50,7 @@ class _SectionParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if tag == "div":
-            match = re.match(r"SECTION_([A-Z]+)\d", attrs.get("id") or "")
+            match = re.match(r"SECTION_([A-Z]+)", attrs.get("id") or "")
             if match and self.depth == 0:
                 self.sections.append([match.group(1), "", []])
                 self.depth = 1
@@ -100,5 +107,9 @@ def load_resumes(path: Path = RESUME_CSV) -> pd.DataFrame:
         "resume_text": split.str[1],
         "human_summary": split.str[0],
     })
-    keep = (resumes["human_summary"] != "") & (resumes["resume_text"] != "")
+    keep = (
+        (resumes["human_summary"] != "")
+        & (resumes["resume_text"] != "")
+        & ~resumes["resume_id"].isin(JUNK_SUMMARY_IDS)
+    )
     return resumes[keep].reset_index(drop=True)[RESUME_COLUMNS]

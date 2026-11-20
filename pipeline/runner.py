@@ -22,8 +22,15 @@ def run_jobs(jobs: list[dict], log_path: Path, workers: int = 4) -> None:
 
     pool = ThreadPoolExecutor(max_workers=workers)
     try:
-        futures = [pool.submit(run, job) for job in todo]
+        futures = {pool.submit(run, job): job for job in todo}
+        failed = 0
         for future in tqdm(as_completed(futures), total=len(todo), desc=f"{len(jobs) - len(todo)} already done"):
-            future.result()
+            try:
+                future.result()
+            except Exception as e:
+                failed += 1
+                tqdm.write(f"{futures[future]['model']}: {str(e)[:200]}")
+        if failed:
+            print(f"{failed} jobs failed")
     finally:
         pool.shutdown(cancel_futures=True)
