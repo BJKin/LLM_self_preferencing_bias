@@ -8,7 +8,7 @@ RESULTS = ROOT / "results"
 # Generation settings
 TEMPERATURE = 1.0
 
-# Models (llama-3.3-70b is control from original paper, all other models are new)
+# Models (llama-3.3-70b and GPT-4o-mini are controls from original paper, all other models are new)
 MODELS = {
     "llama-3.3-70b": {
         "backend": "openrouter",
@@ -16,6 +16,26 @@ MODELS = {
         "provider": {
             "only": [
                 "deepinfra/turbo"
+            ],
+            "allow_fallbacks": False
+            }
+    },
+    "llama-3.3-70b-FP16": {
+        "backend": "openrouter",
+        "id": "meta-llama/llama-3.3-70b-instruct",
+        "provider": {
+            "only": [
+                "coreweave/fp16"
+            ],
+            "allow_fallbacks": False
+            }
+    },
+    "gpt-4o-mini": {
+        "backend": "openrouter",
+        "id": "openai/gpt-4o-mini",
+        "provider": {
+            "only": [
+                "azure"
             ],
             "allow_fallbacks": False
             }
