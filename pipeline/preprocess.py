@@ -5,7 +5,70 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipeline.data import RESUME_CSV, _clean, load_resumes
+from pipeline.data import JOBS_DIR, RESUME_CSV, _clean, load_resumes
+
+
+def _tags(table: str, names: str, key: str) -> pd.Series:
+    """ Map each job_id to its job functions """
+    tags = pd.read_csv(JOBS_DIR / table).merge(pd.read_csv(JOBS_DIR / names), on=key)
+    return tags.groupby("job_id")[tags.columns[-1]].agg(sorted)
+
+
+def _split_joined(match: re.Match) -> str:
+    """ Split a conjoined word onto separate lines unless it is a known name """
+    word = match.group(0)
+    return word if word in NAMES else re.sub(r"(?<=[a-z])(?=[A-Z])", "\n", word)
+
+
+def clean_description(text: str) -> str | None:
+    """ Preprocess job listing description """
+    if "\ufffd" in text:
+        return None
+    lines = []
+    text = re.sub(JOINED, r"\1\n", re.sub(CONTACT, "", _clean(text)))
+    text = re.sub(NAME + r"(?=[A-Z][a-z])", r"\1\n", re.sub(r"\B" + NAME, r"\n\1", text))
+    text = re.sub(CAMEL, _split_joined, text)
+    for line in text.split("\n"):
+        sentences = SENTENCE.split(line)
+        removed = [s for s in sentences if re.search(EEO, s, re.I)]
+        if any(len(s.split()) > MAX_REMOVED_WORDS for s in removed):
+            return None
+        line = " ".join(s for s in sentences if s not in removed).strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def load_listings(path: Path = JOBS_DIR / "postings.csv") -> pd.DataFrame:
+    """ Load LinkedIn postings and clean descriptions """
+    raw = pd.read_csv(path, usecols=["job_id", "title", "company_name", "description", "formatted_experience_level", "formatted_work_type"])
+    raw = raw[raw.formatted_experience_level.isin(LEVELS) & raw.formatted_work_type.isin(WORK_TYPES)]
+    functions = _tags("jobs/job_skills.csv", "mappings/skills.csv", "skill_abr")
+    industries = _tags("jobs/job_industries.csv", "mappings/industries.csv", "industry_id")
+    listings = pd.DataFrame({
+        "job_id": raw.job_id.astype(str),
+        "title": raw.title.map(lambda title: " ".join(_clean(title).split())),
+        "experience_level": raw.formatted_experience_level,
+        "work_type": raw.formatted_work_type,
+        "functions": raw.job_id.map(functions),
+        "industries": raw.job_id.map(industries),
+        "description": raw.description.fillna("").map(clean_description),
+    })
+    for column in ("functions", "industries"):
+        listings[column] = listings[column].map(lambda tags: tags if isinstance(tags, list) else [])
+    words = listings.description.str.split().str.len()
+    keep = listings.description.notna() & words.between(*WORDS) \
+        & ~listings.description.str.contains(RECRUITER, case=False, regex=True, na=False) \
+        & ~listings.industries.map(lambda tags: bool(EXCLUDED_INDUSTRIES.intersection(tags)))
+    listings, company = listings[keep], raw.company_name[keep]
+    repeated = pd.concat([listings.title, company], axis=1).duplicated() | listings.description.duplicated()
+    return listings[~repeated].reset_index(drop=True)
+
+
+def listing_text(row) -> str:
+    """ Plain text of a listing as shown to the screener """
+    return f"Job title: {row.title}\n\n{row.description}"
+
 
 def clean_text(text: str) -> str:
     """ Remove invisible characters and stray separators """
@@ -203,3 +266,35 @@ REDACTED = re.compile(
 SECTION = re.compile(r'<div[^>]*\bid="SECTION_([A-Z]+)[^>]*>')
 TITLE = re.compile(r'<div[^>]*class="[^"]*sectiontitle.*?</div>', re.S)
 PARAGRAPH = re.compile(r'(?=<div[^>]*class="[^"]*\bparagraph\b)')
+
+# Job listing patterns
+LEVELS = ["Entry level", "Associate", "Mid-Senior level"]
+WORK_TYPES = ["Full-time", "Part-time"]
+EXCLUDED_INDUSTRIES = {"Staffing and Recruiting"}
+WORDS = (150, 800)
+
+# Equal opportunity patterns
+EEO = r"equal (?:employment )?opportunit|affirmative action|without regard to|regardless of (?:their )?(?:race|age|sex|religion|colou?r)" \
+      r"|discriminat|race, colou?r|\bEEO\b|protected (?:veteran|class|characteristic|status)|sexual orientation|gender identity|national origin"
+CONTACT = r"\S+@\S+\.\w+|https?://\S+|www\.\S+|\(?\b\d{3}\)?[-. ]\d{3}[-. ]\d{4}(?!\d)"
+RECRUITER = r"\bour client\b"
+
+# Conjoined word patterns
+JOINED = r"(\b[a-z]{3,}|[a-z][.:;!?]|\)|\d[a-z]?)(?=[A-Z][a-z]|A )"
+CAMEL = r"\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b|\b[a-z]{3,}[A-Z]{2,}\b"
+NAMES = {
+    "AdWords", "AirMed", "AmeriCorps", "ArcMap", "AutoCad", "BigQuery", "BlueCross", "BlueShield", "CapEx",
+    "CloudFormation", "CloudWatch", "DailyPay", "DeKalb", "DevOps", "DevSecOps", "DocuSign", "DuPont", "FactSet",
+    "FedEx", "FinTech", "GitHub", "GitLab", "GoToMeeting", "HealthCare", "HubSpot", "InDesign", "JavaScript",
+    "LabView", "LaSalle", "LexisNexis", "LinkedIn", "macOS", "MailChimp", "MarTech", "MatLab", "McAfee", "McAllen",
+    "McDonald", "McKesson", "McKinney", "McLean", "MetLife", "MicroSoft", "MicroStation", "MicroStrategy", "NetApp",
+    "NetSuite", "NextGen", "NumPy", "OneDrive", "OneNote", "OneSource", "OneStream", "OpenShift", "OpEx",
+    "PeopleSoft", "PepsiCo", "PhotoShop", "PowerApps", "PowerPoint", "PowerShell", "PowerWorld", "PySpark",
+    "PyTorch", "QlikView", "QuickBooks", "RedHat", "SailPoint", "SalesForce", "ServiceNow", "ServSafe",
+    "SharePoint", "SketchUp", "SolarWinds", "SolidWorks", "SonarQube", "SonicWall", "SuccessFactors", "TensorFlow",
+    "TikTok", "TypeScript", "UltiPro", "UnitedHealth", "WebEx", "WebLogic", "WebSphere", "WiFi", "WordPress",
+    "YouTube", "ZoomInfo",
+}
+NAME = "(" + "|".join(sorted(NAMES, key=len, reverse=True)) + ")"
+SENTENCE = re.compile(r"(?<=[.!?])\s+")
+MAX_REMOVED_WORDS = 80

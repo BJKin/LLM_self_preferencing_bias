@@ -11,13 +11,15 @@ from pipeline.config import DATA
 
 RESUME_COLUMNS = ["resume_id", "category", "resume_text", "human_summary"]
 
-# Kaggle datasets:
+# Kaggle datasets
 DATASETS = {
-    "resumes": ("snehaanbhawal/resume-dataset", "Resume/Resume.csv", DATA),
-    "jobs": ("marcocavaco/scraped-job-descriptions", "JD_data.csv", DATA / "Jobs"),
+    "resumes": ("snehaanbhawal/resume-dataset", ["Resume/Resume.csv"], DATA),
+    "jobs": ("arshkon/linkedin-job-postings", [
+        "postings.csv", "jobs/job_skills.csv", "jobs/job_industries.csv", "mappings/skills.csv", "mappings/industries.csv",
+    ], DATA / "LinkedIn"),
 }
 RESUME_CSV = DATA / "Resume" / "Resume.csv"
-JOBS_CSV = DATA / "Jobs" / "JD_data.csv"
+JOBS_DIR = DATA / "LinkedIn"
 
 # Remove resumes with summaries which are clearly junk
 JUNK_SUMMARY_IDS = {
@@ -28,12 +30,13 @@ JUNK_SUMMARY_IDS = {
 
 
 def download_data(force: bool = False) -> None:
-    """ Download the resume and job listing CSVs from Kaggle into ./data/ """
-    for handle, file, folder in DATASETS.values():
-        if force or not (folder / file).exists():
-            kagglehub.dataset_download(handle, path=file, output_dir=str(folder), force_download=force)
-            # remove Kagglehub's download finished markers
-            shutil.rmtree(folder / ".complete", ignore_errors=True)
+    """ Download the resume and job posting CSVs from Kaggle into ./data/ """
+    for handle, files, folder in DATASETS.values():
+        for file in files:
+            if force or not (folder / file).exists():
+                kagglehub.dataset_download(handle, path=file, output_dir=str(folder), force_download=force)
+        # remove Kagglehub's download finished markers
+        shutil.rmtree(folder / ".complete", ignore_errors=True)
 
 
 class _SectionParser(HTMLParser):
