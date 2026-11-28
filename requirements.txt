@@ -8,6 +8,10 @@ kagglehub
 pandas          
 matplotlib
 tqdm
+statsmodels
+scikit-learn
+textstat
+bert_score
 
 # Notebook
 ipykernel
